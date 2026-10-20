@@ -21,7 +21,6 @@ public class Service implements IService {
         }
     }
 
-    // =============== LOGIN ===============
     @Override
     public Funcionario login(Funcionario f) throws Exception {
         if (f == null || f.getId() == null || f.getId().isBlank())
@@ -50,9 +49,6 @@ public class Service implements IService {
 
         funcionarioDao.updateClave(f.getId(), claveNueva);
     }
-
-    // =============== B: FUNCIONARIOS / CATEGORÍAS / RESERVAS ===============
-    // =============== C: RECURSOS / ACTIVIDADES / ESTADÍSTICAS ===============
 
     @Override
     public void stop() {

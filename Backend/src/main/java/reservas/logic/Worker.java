@@ -13,7 +13,6 @@ public class Worker {
     ObjectInputStream is;
     IService service;
 
-    // Canal asincrónico (alertas)
     final String sessionId = UUID.randomUUID().toString();
     Socket sAsync;
     ObjectOutputStream osAsync;
@@ -60,7 +59,6 @@ public class Worker {
         System.out.println("Conexion cerrada...");
     }
 
-    // ===== Canal asincrónico =====
     public String getSessionId() {
         return sessionId;
     }
@@ -86,7 +84,6 @@ public class Worker {
         }
     }
 
-    // ===== Respuestas =====
     private void ok() throws IOException {
         os.writeInt(Protocol.ERROR_NO_ERROR);
     }
@@ -109,7 +106,6 @@ public class Worker {
                 method = is.readInt();
                 System.out.println("Operacion: " + method);
                 switch (method) {
-                    // ===== A: LOGIN =====
                     case Protocol.LOGIN:
                         try {
                             Funcionario f = service.login((Funcionario) is.readObject());
@@ -124,9 +120,6 @@ public class Worker {
                             ok();
                         } catch (Exception ex) { error(ex); }
                         break;
-
-                    // ===== B: FUNCIONARIOS / CATEGORÍAS / RESERVAS =====
-                    // ===== C: RECURSOS / ACTIVIDADES / ESTADÍSTICAS =====
 
                     case Protocol.DISCONNECT:
                         stop();

@@ -28,7 +28,6 @@ public class Server {
     public void run() {
         IService service = Service.instance();
 
-        // Hilo que recibe las conexiones del canal asincrónico
         Thread tAsync = new Thread(new Runnable() {
             public void run() {
                 runAsync();
@@ -82,7 +81,6 @@ public class Server {
         return null;
     }
 
-    /** Envía una notificación a todos los Frontend conectados, menos al que la originó. */
     public void broadcast(int tipo, Object payload, Worker origen) {
         List<Worker> copia;
         synchronized (workers) {
