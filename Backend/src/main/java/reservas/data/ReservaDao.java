@@ -17,7 +17,7 @@ public class ReservaDao {
     Database db = Database.instance();
 
     public Reserva create(Reserva r) throws Exception {
-        Connection cnx = db.cnx;   // misma conexión: la transacción debe ser una sola
+        Connection cnx = db.connection();   // misma conexión: la transacción debe ser una sola
         boolean autoCommit = cnx.getAutoCommit();
         cnx.setAutoCommit(false);
         try {

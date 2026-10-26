@@ -1,12 +1,19 @@
 CREATE DATABASE IF NOT EXISTS reservas CHARACTER SET utf8mb4;
 USE reservas;
 
+DROP TABLE IF EXISTS reserva_recurso;
+DROP TABLE IF EXISTS reserva;
+DROP TABLE IF EXISTS recurso;
+DROP TABLE IF EXISTS categoria;
+DROP TABLE IF EXISTS funcionario;
+
 CREATE TABLE funcionario (
                              id        VARCHAR(20)  PRIMARY KEY,
                              nombre    VARCHAR(100) NOT NULL,
                              telefono  VARCHAR(20)  NOT NULL DEFAULT '',
                              clave     VARCHAR(50)  NOT NULL,
                              rol       VARCHAR(20)  NOT NULL
+                             CHECK (rol IN ('FUNCIONARIO', 'ADMINISTRADOR'))
 );
 
 CREATE TABLE categoria (
@@ -28,7 +35,9 @@ CREATE TABLE reserva (
                          fecha          DATE NOT NULL,
                          desde          TIME NOT NULL,
                          hasta          TIME NOT NULL,
-                         FOREIGN KEY (funcionario_id) REFERENCES funcionario(id)
+                         FOREIGN KEY (funcionario_id) REFERENCES funcionario(id),
+                         CHECK (desde < hasta),
+                         INDEX idx_reserva_fecha (fecha)
 );
 
 CREATE TABLE reserva_recurso (

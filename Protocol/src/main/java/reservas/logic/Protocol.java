@@ -29,6 +29,11 @@ public class Protocol {
 
     public static final int RESERVA_CREATE = 501;
     public static final int RESERVA_FINDALL = 502;
+    public static final int RESERVA_DELETE = 503;
+    public static final int RESERVA_READ = 504;
+    public static final int RESERVA_FUNCIONARIO = 505;
+    public static final int RESERVA_SEARCH = 506;
+    public static final int RESERVA_EXTRAER = 507;
 
     public static final int NOTIFY_RESERVA = 901;
 

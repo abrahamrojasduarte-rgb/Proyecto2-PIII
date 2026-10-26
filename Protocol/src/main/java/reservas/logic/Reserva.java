@@ -16,6 +16,14 @@ public class Reserva implements Serializable {
     private LocalTime hasta;
     private List<Recurso> recursos = new ArrayList<>();
 
+    public Reserva() {}
+    public Reserva(String descripcion, LocalDate fecha, LocalTime desde, LocalTime hasta){
+        this.descripcion = descripcion;
+        this.fecha = fecha;
+        this.desde = desde;
+        this.hasta = hasta;
+    }
+
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public Funcionario getFuncionario() { return funcionario; }
@@ -30,4 +38,18 @@ public class Reserva implements Serializable {
     public void setHasta(LocalTime hasta) { this.hasta = hasta; }
     public List<Recurso> getRecursos() { return recursos; }
     public void setRecursos(List<Recurso> recursos) { this.recursos = recursos; }
+
+    public boolean ocupaHora(int hora){
+        if (desde == null || hasta == null){
+            return false;
+        }
+        LocalTime inicioBloque = LocalTime.of(hora, 0);
+        LocalTime finBloque = hora == 23 ? LocalTime.MAX: LocalTime.of(hora + 1, 0);
+        return desde.isBefore(finBloque) && hasta.isAfter(inicioBloque);
+    }
+
+    public boolean seTraslapa(LocalDate otraFecha, LocalTime otroDesde, LocalTime otroHasta){
+        return fecha != null && fecha.equals(otraFecha) && desde.isBefore(otroHasta) && hasta.isAfter(otroDesde);
+    }
+
 }

@@ -19,20 +19,16 @@ public class Service implements IService {
         return theInstance;
     }
 
-    private FuncionarioDao funcionarioDao;
-    private CategoriaDao categoriaDao;
-    private RecursoDao recursoDao;
-    private ReservaDao reservaDao;
+    private final FuncionarioDao funcionarioDao;
+    private final CategoriaDao categoriaDao;
+    private final RecursoDao recursoDao;
+    private final ReservaDao reservaDao;
 
-    private Service() {
-        try {
-            funcionarioDao = new FuncionarioDao();
-            categoriaDao = new CategoriaDao();
-            recursoDao = new RecursoDao();
-            reservaDao = new ReservaDao();
-        } catch (Exception e) {
-            System.exit(-1);
-        }
+    Service() {
+        funcionarioDao = new FuncionarioDao();
+        categoriaDao = new CategoriaDao();
+        recursoDao = new RecursoDao();
+        reservaDao = new ReservaDao();
     }
 
     private static boolean vacio(String s) {

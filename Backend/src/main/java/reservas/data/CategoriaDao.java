@@ -63,4 +63,18 @@ public class CategoriaDao {
         }
         return lista;
     }
+
+    public CategoriaRecurso read(String id) throws Exception{
+        String sql = "select * from categoria where id=?";
+        try (PreparedStatement stm = db.prepareStatement(sql)) {
+            stm.setString(1, id);
+            try(ResultSet rs = stm.executeQuery()) {
+                if (rs.next()){
+                    return new CategoriaRecurso(rs.getString("id"), rs.getString("descripcio"));
+                }
+            }
+        }
+        throw new Exception("La categoria " + id + " no existe");
+    }
+
 }
