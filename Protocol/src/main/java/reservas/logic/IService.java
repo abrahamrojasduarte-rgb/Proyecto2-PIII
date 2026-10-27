@@ -1,5 +1,6 @@
 package reservas.logic;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface IService {
@@ -24,8 +25,13 @@ public interface IService {
     List<Recurso> findAllRecursos() throws Exception;
     List<Recurso> searchRecursos(String categoriaId, String descripcion) throws Exception;
 
-    Reserva createReserva(Reserva r) throws Exception;
+
+    Reserva createReserva(Reserva r, List<CategoriaRecurso> categorias) throws Exception;
+    void deleteReserva(int id) throws Exception;
+    Reserva findReservaById(int id) throws Exception;
     List<Reserva> findAllReservas() throws Exception;
+    List<Reserva> findReservasByFuncionario(String idFuncionario) throws Exception;
+    List<Reserva> searchReservas(LocalDate desde, LocalDate hasta) throws Exception;
 
     void stop();
 }

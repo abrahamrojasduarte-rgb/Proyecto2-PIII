@@ -7,6 +7,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDate;
 
 public class Worker {
     Server srv;
@@ -110,21 +111,24 @@ public class Worker {
         if (usuario == null) throw new Exception("Debe iniciar sesión");
     }
 
+    private boolean esAdmin() {
+        return usuario != null && Rol.ADMINISTRADOR.equals(usuario.getRol());
+    }
+
     private void requireAdmin() throws Exception {
         requireLogin();
-        if (!"ADMINISTRADOR".equals(String.valueOf(usuario.getRol())))
-            throw new Exception("Solo un administrador puede ejecutar esta operación");
+        if (!esAdmin()) throw new Exception("Solo un administrador puede ejecutar esta operación");
     }
 
-    private AlertaReserva alertaDe(Reserva r) {
-        List<String> recursos = new ArrayList<>();
-        for (Recurso rec : r.getRecursos()) recursos.add(rec.getDescripcion());
-        return new AlertaReserva(r.getFuncionario().getNombre(), r.getDescripcion(),
-                r.getFecha(), r.getDesde(), r.getHasta(), recursos);
+    private void requireFuncionario() throws Exception {
+        requireLogin();
+        if (!Rol.FUNCIONARIO.equals(usuario.getRol()))
+            throw new Exception("Solo un funcionario puede hacer reservas");
     }
 
-    // OJO: en cada caso se LEEN los argumentos primero y DESPUÉS se valida el permiso.
+    // OJO: en cada caso se LEEN los argumentos primero y DESPUES se valida el permiso.
     // Si se rechaza antes de leer, los bytes quedan en el stream y se desincroniza el protocolo.
+    @SuppressWarnings("unchecked")
     public void listen() {
         int method;
         while (continuar) {
@@ -273,11 +277,32 @@ public class Worker {
                     case Protocol.RESERVA_CREATE:
                         try {
                             Reserva r = (Reserva) is.readObject();
-                            requireLogin();
-                            r.setFuncionario(usuario);   // el dueño sale de la sesión, no del cliente
-                            Reserva creada = service.createReserva(r);
+                            List<CategoriaRecurso> categorias = (List<CategoriaRecurso>) is.readObject();
+                            requireFuncionario();
+                            r.setFuncionario(usuario);   // el dueno sale de la sesion, no del cliente
+                            Reserva creada = service.createReserva(r, categorias);
                             ok(creada);
-                            srv.broadcast(Protocol.NOTIFY_RESERVA, alertaDe(creada), this);
+                            os.flush();
+                            // Efecto colateral: notificacion asincronica a los DEMAS Frontend
+                            srv.broadcast(Protocol.NOTIFY_RESERVA, AlertaReserva.de(creada), this);
+                        } catch (Exception ex) { error(ex); }
+                        break;
+                    case Protocol.RESERVA_DELETE:
+                        try {
+                            int id = is.readInt();
+                            requireLogin();
+                            Reserva r = service.findReservaById(id);
+                            if (!esAdmin() && !r.getFuncionario().getId().equals(usuario.getId()))
+                                throw new Exception("Solo puede cancelar sus propias reservas");
+                            service.deleteReserva(id);
+                            ok();
+                        } catch (Exception ex) { error(ex); }
+                        break;
+                    case Protocol.RESERVA_READ:
+                        try {
+                            int id = is.readInt();
+                            requireLogin();
+                            ok(service.findReservaById(id));
                         } catch (Exception ex) { error(ex); }
                         break;
                     case Protocol.RESERVA_FINDALL:
@@ -286,13 +311,35 @@ public class Worker {
                             ok(service.findAllReservas());
                         } catch (Exception ex) { error(ex); }
                         break;
-
+                    case Protocol.RESERVA_FUNCIONARIO:
+                        try {
+                            String id = (String) is.readObject();
+                            requireLogin();
+                            if (!esAdmin()) id = usuario.getId();   // un funcionario solo ve las suyas
+                            ok(service.findReservasByFuncionario(id));
+                        } catch (Exception ex) { error(ex); }
+                        break;
+                    case Protocol.RESERVA_SEARCH:
+                        try {
+                            LocalDate desde = (LocalDate) is.readObject();
+                            LocalDate hasta = (LocalDate) is.readObject();
+                            requireLogin();
+                            ok(service.searchReservas(desde, hasta));
+                        } catch (Exception ex) { error(ex); }
+                        break;
+                    case Protocol.RESERVA_EXTRAER:
+                        try {
+                            String frase = (String) is.readObject();
+                            requireFuncionario();
+                            ok(service.extraerReserva(frase));
+                        } catch (Exception ex) { error(ex); }
+                        break;
                     case Protocol.DISCONNECT:
                         stop();
                         srv.remove(this);
                         return;
 
-                    default:   // código desconocido: no sabemos cuántos bytes consumir, se cierra
+                    default:   // codigo desconocido: no sabemos cuantos bytes consumir, se cierra
                         stop();
                         srv.remove(this);
                         return;

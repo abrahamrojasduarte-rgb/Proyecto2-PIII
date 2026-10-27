@@ -10,6 +10,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.LocalTime;
+import java.time.LocalDate;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.service.AiServices;
+import java.util.stream.Collectors;
 
 public class Service implements IService {
     private static Service theInstance;
@@ -62,11 +67,13 @@ public class Service implements IService {
     }
 
     // =============== FUNCIONARIOS ===============
-    private void validar(Funcionario f) throws Exception {
+    static void validar(Funcionario f) throws Exception {
         if (f == null) throw new Exception("Funcionario inválido");
         if (vacio(f.getId())) throw new Exception("El id es requerido");
         if (vacio(f.getNombre())) throw new Exception("El nombre es requerido");
         if (vacio(f.getTelefono())) throw new Exception("El teléfono es requerido");
+        if (!f.getTelefono().trim().matches("[0-9 +()-]{4,20}"))
+            throw new Exception("El teléfono solo puede tener números (mínimo 4)");
         f.setId(f.getId().trim());
         f.setNombre(f.getNombre().trim());
         f.setTelefono(f.getTelefono().trim());
@@ -105,7 +112,7 @@ public class Service implements IService {
     }
 
     // =============== CATEGORIAS ===============
-    private void validar(CategoriaRecurso c) throws Exception {
+    static void validar(CategoriaRecurso c) throws Exception {
         if (c == null || vacio(c.getDescripcion()))
             throw new Exception("La descripción de la categoría no puede estar vacía");
         c.setDescripcion(c.getDescripcion().trim());
@@ -141,7 +148,7 @@ public class Service implements IService {
     }
 
     // =============== RECURSOS ===============
-    private void validar(Recurso r) throws Exception {
+    static void validar(Recurso r) throws Exception {
         if (r == null) throw new Exception("Recurso inválido");
         if (vacio(r.getId())) throw new Exception("El id (número de activo) es requerido");
         if (vacio(r.getDescripcion())) throw new Exception("La descripción es requerida");
@@ -180,39 +187,113 @@ public class Service implements IService {
     }
 
     // =============== RESERVAS ===============
-    @Override
-    public synchronized Reserva createReserva(Reserva r) throws Exception {
+
+    static List<CategoriaRecurso> validar(Reserva r, List<CategoriaRecurso> categorias,
+                                          LocalDate hoy, LocalTime ahora) throws Exception {
         if (r == null) throw new Exception("Reserva inválida");
         if (r.getFuncionario() == null || vacio(r.getFuncionario().getId()))
             throw new Exception("La reserva no tiene un funcionario asociado");
-        if (vacio(r.getDescripcion())) throw new Exception("Debe indicar la descripción de la reserva");
+        if (vacio(r.getDescripcion())) throw new Exception("Debe indicar la actividad");
+        if (r.getDescripcion().trim().length() > 150)
+            throw new Exception("La actividad no puede tener más de 150 caracteres");
         if (r.getFecha() == null) throw new Exception("Debe indicar la fecha");
         if (r.getDesde() == null || r.getHasta() == null)
             throw new Exception("Debe indicar la hora de inicio y la hora final");
         if (!r.getDesde().isBefore(r.getHasta()))
-            throw new Exception("La hora de inicio debe ser anterior a la hora final");
-        if (r.getRecursos() == null || r.getRecursos().isEmpty())
-            throw new Exception("Debe seleccionar al menos un recurso");
+            throw new Exception("La hora de fin debe ser mayor a la hora de inicio");
+        if (r.getFecha().isBefore(hoy))
+            throw new Exception("No se pueden hacer reservas en fechas pasadas");
+        if (r.getFecha().equals(hoy) && r.getDesde().isBefore(ahora.withSecond(0).withNano(0)))
+            throw new Exception("No se pueden hacer reservas en horas que ya pasaron");
+        if (categorias == null || categorias.isEmpty())
+            throw new Exception("Debe seleccionar al menos una categoria");
 
-        // Releer los recursos desde la BD: valida que existan y elimina duplicados
-        Map<String, Recurso> unicos = new LinkedHashMap<>();
-        for (Recurso x : r.getRecursos()) {
-            Recurso real = recursoDao.read(x.getId());
-            unicos.put(real.getId(), real);
+        // Elimina categorias repetidas (por id) conservando el orden
+        Map<String, CategoriaRecurso> unicas = new LinkedHashMap<>();
+        for (CategoriaRecurso c : categorias) {
+            if (c == null || vacio(c.getID())) throw new Exception("Categoría inválida");
+            unicas.put(c.getID(), c);
         }
-        r.setRecursos(new ArrayList<>(unicos.values()));
+        r.setDescripcion(r.getDescripcion().trim());
+        return new ArrayList<>(unicas.values());
+    }
+
+    @Override
+    public synchronized Reserva createReserva(Reserva r, List<CategoriaRecurso> categorias) throws Exception {
+        List<CategoriaRecurso> unicas = validar(r, categorias, LocalDate.now(), LocalTime.now());
+
+        // Releer las categorias desde la BD: valida que existan y trae su descripcion real
+        List<CategoriaRecurso> reales = new ArrayList<>();
+        for (CategoriaRecurso c : unicas) reales.add(categoriaDao.read(c.getID()));
 
         Funcionario f = funcionarioDao.read(r.getFuncionario().getId());
         f.setClave("");
         r.setFuncionario(f);
-        r.setDescripcion(r.getDescripcion().trim());
 
-        return reservaDao.create(r);   // transacción + chequeo de traslapes
+        return reservaDao.create(r, reales);   // transaccion + asignacion de recursos libres
+    }
+
+    @Override
+    public synchronized void deleteReserva(int id) throws Exception {
+        Reserva r = reservaDao.read(id);
+        if (r.getFecha().isBefore(LocalDate.now()))
+            throw new Exception("Solo se pueden cancelar reservas futuras");
+        reservaDao.delete(id);
     }
 
     @Override
     public synchronized List<Reserva> findAllReservas() throws Exception {
         return reservaDao.findAll();
+    }
+
+    @Override
+    public synchronized Reserva findReservaById(int id) throws Exception {
+        return reservaDao.read(id);
+    }
+
+    @Override
+    public synchronized List<Reserva> findReservasByFuncionario(String idFuncionario) throws Exception {
+        if (vacio(idFuncionario)) throw new Exception("Debe indicar el funcionario");
+        return reservaDao.findByFuncionario(idFuncionario.trim());
+    }
+
+    static void validarRango(LocalDate desde, LocalDate hasta) throws Exception {
+        if (desde == null || hasta == null) throw new Exception("Debe indicar las fechas desde y hasta");
+        if (hasta.isBefore(desde)) throw new Exception("La fecha hasta debe ser posterior a la fecha desde");
+    }
+
+    @Override
+    public synchronized List<Reserva> searchReservas(LocalDate desde, LocalDate hasta) throws Exception {
+        validarRango(desde, hasta);
+        return reservaDao.search(desde, hasta);
+    }
+
+    // =============== IA ===============
+    // No es synchronized completo: la llamada al modelo puede tardar y no debe bloquear a los demas clientes.
+    @Override
+    public ReservaExtraccion extraerReserva(String frase) throws Exception {
+        if (vacio(frase)) throw new Exception("Escriba una frase para interpretar");
+
+        String listaCategorias;
+        synchronized (this) {
+            listaCategorias = categoriaDao.search("").stream()
+                    .map(CategoriaRecurso::getDescripcion)
+                    .collect(Collectors.joining("\n"));
+        }
+
+        try {
+            OpenAiChatModel aiModel = OpenAiChatModel.builder()
+                    .baseUrl("http://langchain4j.dev/demo/openai/v1")
+                    .apiKey("demo")
+                    .modelName("gpt-4o-mini")
+                    .build();
+            ReservaExtractorService aiService = AiServices.create(ReservaExtractorService.class, aiModel);
+            ReservaExtraccion datos = aiService.extraer(frase, listaCategorias, LocalDate.now().toString());
+            if (datos == null) throw new Exception("La IA no devolvió datos");
+            return datos;
+        } catch (Exception ex) {
+            throw new Exception("No se pudo interpretar la frase: " + ex.getMessage());
+        }
     }
 
     @Override
