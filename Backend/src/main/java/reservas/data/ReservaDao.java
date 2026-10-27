@@ -28,7 +28,7 @@ public class ReservaDao {
 
      //Crea la reserva asignando un recurso libre de cada categoria pedida.
      //todito ocurre en una sola transaccion: si alguna categoria no tiene recursos
-    //libres en ese horario, no se guarda nada.
+     //libres en ese horario, no se guarda nada.
 
     public Reserva create(Reserva r, List<CategoriaRecurso> categorias) throws Exception {
         Connection cnx = db.connection();   // misma conexion: la transaccion debe ser una sola
@@ -79,10 +79,6 @@ public class ReservaDao {
         }
     }
 
-    /**
-     * Primer recurso de la categoria que no este en otra reserva que se traslape.
-     * Dos reservas se traslapan si inicio1 < fin2 y fin1 > inicio2 (misma fecha).
-     */
     private Recurso buscarLibre(Connection cnx, CategoriaRecurso c, Reserva r) throws Exception {
         String sql = RecursoDao.SELECT +
                 "where r.categoria_id = ? and not exists (" +

@@ -3,106 +3,204 @@ package reservas.logic;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Server {
-    ServerSocket srv;
-    ServerSocket srvAsync;
-    List<Worker> workers;
 
-    public Server() {
+public class Service implements IService {
+    private static Service theInstance;
+
+    // Crea (la primera vez) la conexion con el Backend segun frontend.properties
+    public static synchronized Service instance() {
+        if (theInstance == null) {
+            try {
+                theInstance = new Service(Configuracion.cargar());
+            } catch (Exception ex) {
+                throw new IllegalStateException(ex.getMessage(), ex);
+            }
+        }
+        return theInstance;
+    }
+
+    private final Configuracion configuracion;
+    private final Socket s;
+    private final ObjectOutputStream os;
+    private final ObjectInputStream is;
+    private final String sid;   // id de sesion que asigna el Backend
+
+    public Service(Configuracion configuracion) throws Exception {
+        this.configuracion = configuracion;
         try {
-            srv = new ServerSocket(Protocol.PORT);
-            srvAsync = new ServerSocket(Protocol.PORT_ASYNC);
-            workers = new ArrayList<Worker>();
-            System.out.println("Servidor iniciado (puertos " + Protocol.PORT + " y " + Protocol.PORT_ASYNC + ")...");
+            s = new Socket();
+            s.connect(new InetSocketAddress(configuracion.getServer(), configuracion.getPort()), 5000);
+            os = new ObjectOutputStream(s.getOutputStream());
+            os.flush();
+            is = new ObjectInputStream(s.getInputStream());
+            sid = (String) is.readObject();          // lo primero que envia el Worker
+        } catch (Exception ex) {
+            throw new Exception("No se pudo conectar con el servidor " + configuracion.getServer()
+                    + ":" + configuracion.getPort() + " (" + ex.getMessage() + ")");
+        }
+    }
+
+    public String getSid() { return sid; }
+    public Configuracion getConfiguracion() { return configuracion; }
+
+    // ===================== Mecanica de envio =====================
+    private void enviar(int operacion, Object... argumentos) throws IOException {
+        os.writeInt(operacion);
+        for (Object a : argumentos) {
+            if (a instanceof Integer) {
+                os.writeInt((Integer) a);
+            } else {
+                os.reset();          // si no, un objeto modificado se reenviaria con sus datos viejos
+                os.writeObject(a);
+            }
+        }
+        os.flush();
+    }
+
+    private void verificarEstado() throws Exception {
+        int estado = is.readInt();
+        if (estado != Protocol.ERROR_NO_ERROR) {
+            throw new Exception((String) is.readObject());
+        }
+    }
+
+    // Peticion sin resultado (solo estado)
+    private synchronized void ejecutar(int operacion, Object... argumentos) throws Exception {
+        try {
+            enviar(operacion, argumentos);
+            verificarEstado();
         } catch (IOException ex) {
-            System.out.println(ex);
-            System.exit(-1);
+            throw new Exception("Se perdió la conexión con el servidor");
         }
     }
 
-    public void run() {
-        IService service = Service.instance();
-
-        Thread tAsync = new Thread(new Runnable() {
-            public void run() {
-                runAsync();
-            }
-        });
-        tAsync.setDaemon(true);
-        tAsync.start();
-
-        boolean continuar = true;
-        Socket s;
-        Worker worker;
-        while (continuar) {
-            try {
-                s = srv.accept();
-                System.out.println("Conexion Establecida...");
-                worker = new Worker(this, s, service);
-                this.add(worker);
-                worker.start();
-            } catch (Exception ex) {
-                System.out.println(ex);
-            }
+    // Peticion con resultado
+    @SuppressWarnings("unchecked")
+    private synchronized <T> T consultar(int operacion, Object... argumentos) throws Exception {
+        try {
+            enviar(operacion, argumentos);
+            verificarEstado();
+            return (T) is.readObject();
+        } catch (IOException ex) {
+            throw new Exception("Se perdió la conexión con el servidor");
         }
     }
 
-    private void runAsync() {
-        while (true) {
-            try {
-                Socket sa = srvAsync.accept();
-                ObjectOutputStream osa = new ObjectOutputStream(sa.getOutputStream());
-                ObjectInputStream isa = new ObjectInputStream(sa.getInputStream());
-                String sid = (String) isa.readObject();
-                Worker w = find(sid);
-                if (w != null) {
-                    w.setAsync(sa, osa);
-                    System.out.println("Canal asincrónico asociado.");
-                } else {
-                    sa.close();
-                }
-            } catch (Exception ex) {
-                System.out.println(ex);
-            }
-        }
+    // =============== LOGIN ===============
+    @Override
+    public Funcionario login(Funcionario f) throws Exception {
+        return consultar(Protocol.LOGIN, f);
     }
 
-    private Worker find(String sid) {
-        synchronized (workers) {
-            for (Worker w : workers) {
-                if (w.getSessionId().equals(sid)) return w;
-            }
-        }
-        return null;
+    @Override
+    public void cambiarClave(Funcionario f, String claveNueva) throws Exception {
+        ejecutar(Protocol.CAMBIAR_CLAVE, f, claveNueva);
     }
 
-    // Envía una notificación a todos los clientes menos al que la originó
-    public void broadcast(int tipo, Object payload, Worker origen) {
-        List<Worker> copia;
-        synchronized (workers) {
-            copia = new ArrayList<Worker>(workers);
-        }
-        for (Worker w : copia) {
-            if (w != origen) w.notificar(tipo, payload);
-        }
+    // =============== FUNCIONARIOS ===============
+    @Override
+    public void create(Funcionario f) throws Exception { ejecutar(Protocol.FUNCIONARIO_CREATE, f); }
+
+    @Override
+    public void update(Funcionario f) throws Exception { ejecutar(Protocol.FUNCIONARIO_UPDATE, f); }
+
+    @Override
+    public void delete(String id) throws Exception { ejecutar(Protocol.FUNCIONARIO_DELETE, id); }
+
+    @Override
+    public List<Funcionario> findAll() throws Exception { return consultar(Protocol.FUNCIONARIO_FINDALL); }
+
+    @Override
+    public List<Funcionario> search(String id, String nombre) throws Exception {
+        return consultar(Protocol.FUNCIONARIO_SEARCH, texto(id), texto(nombre));
     }
 
-    public void add(Worker w) {
-        synchronized (workers) {
-            workers.add(w);
-            System.out.println("Quedan: " + workers.size());
-        }
+    // =============== CATEGORIAS ===============
+    @Override
+    public CategoriaRecurso createCategoria(CategoriaRecurso c) throws Exception {
+        return consultar(Protocol.CATEGORIA_CREATE, c);
     }
 
-    public void remove(Worker w) {
-        synchronized (workers) {
-            workers.remove(w);
-            System.out.println("Quedan: " + workers.size());
-        }
+    @Override
+    public void updateCategoria(CategoriaRecurso c) throws Exception { ejecutar(Protocol.CATEGORIA_UPDATE, c); }
+
+    @Override
+    public void deleteCategoria(String id) throws Exception { ejecutar(Protocol.CATEGORIA_DELETE, id); }
+
+    @Override
+    public List<CategoriaRecurso> findAllCategorias() throws Exception {
+        return consultar(Protocol.CATEGORIA_FINDALL);
     }
+
+    @Override
+    public List<CategoriaRecurso> searchCategorias(String descripcion) throws Exception {
+        return consultar(Protocol.CATEGORIA_SEARCH, texto(descripcion));
+    }
+
+    // =============== RECURSOS ===============
+    @Override
+    public void createRecurso(Recurso r) throws Exception { ejecutar(Protocol.RECURSO_CREATE, r); }
+
+    @Override
+    public void updateRecurso(Recurso r) throws Exception { ejecutar(Protocol.RECURSO_UPDATE, r); }
+
+    @Override
+    public void deleteRecurso(String id) throws Exception { ejecutar(Protocol.RECURSO_DELETE, id); }
+
+    @Override
+    public List<Recurso> findAllRecursos() throws Exception { return consultar(Protocol.RECURSO_FINDALL); }
+
+    @Override
+    public List<Recurso> searchRecursos(String categoriaId, String descripcion) throws Exception {
+        return consultar(Protocol.RECURSO_SEARCH, texto(categoriaId), texto(descripcion));
+    }
+
+    // =============== RESERVAS ===============
+    @Override
+    public Reserva createReserva(Reserva r, List<CategoriaRecurso> categorias) throws Exception {
+        return consultar(Protocol.RESERVA_CREATE, r, new ArrayList<>(categorias));
+    }
+
+    @Override
+    public void deleteReserva(int id) throws Exception { ejecutar(Protocol.RESERVA_DELETE, id); }
+
+    @Override
+    public Reserva findReservaById(int id) throws Exception { return consultar(Protocol.RESERVA_READ, id); }
+
+    @Override
+    public List<Reserva> findAllReservas() throws Exception { return consultar(Protocol.RESERVA_FINDALL); }
+
+    @Override
+    public List<Reserva> findReservasByFuncionario(String idFuncionario) throws Exception {
+        return consultar(Protocol.RESERVA_FUNCIONARIO, texto(idFuncionario));
+    }
+
+    @Override
+    public List<Reserva> searchReservas(LocalDate desde, LocalDate hasta) throws Exception {
+        if (desde == null || hasta == null) throw new Exception("Debe indicar las fechas desde y hasta");
+        return consultar(Protocol.RESERVA_SEARCH, desde, hasta);
+    }
+
+    @Override
+    public ReservaExtraccion extraerReserva(String frase) throws Exception {
+        return consultar(Protocol.RESERVA_EXTRAER, texto(frase));
+    }
+
+    // =============== CIERRE ===============
+    @Override
+    public synchronized void stop() {
+        try {
+            os.writeInt(Protocol.DISCONNECT);
+            os.flush();
+        } catch (IOException ignored) { }
+        try { s.close(); } catch (IOException ignored) { }
+    }
+
+    private static String texto(String s) { return s == null ? "" : s; }
 }

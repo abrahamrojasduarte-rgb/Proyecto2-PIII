@@ -24,12 +24,6 @@ public class Database {
     public Database() { }
 
     private long ultimaVerificacion;
-
-    /**
-     * Devuelve la conexion, abriendola (o reabriendola) si hace falta. Cada 30 s como maximo se
-     * verifica que siga viva (MySQL cierra las conexiones inactivas despues de un tiempo).
-     */
-
     public synchronized Connection connection() throws SQLException {
         long ahora = System.currentTimeMillis();
         boolean verificar = ahora - ultimaVerificacion > 30_000;

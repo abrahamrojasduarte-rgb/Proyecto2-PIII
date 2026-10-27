@@ -22,35 +22,31 @@ public class Worker {
     ObjectOutputStream osAsync;
     private final Object asyncLock = new Object();
 
-    Funcionario usuario;   // quien inició sesión en esta conexión (null = nadie)
+    volatile Funcionario usuario;   // quien inició sesión en esta conexión (null = nadie)
 
-    public Worker(Server srv, Socket s, IService service) {
-        try {
-            this.srv = srv;
-            this.s = s;
-            this.service = service;
-            os = new ObjectOutputStream(s.getOutputStream());
-            is = new ObjectInputStream(s.getInputStream());
-            os.writeObject(sessionId);   // lo primero que recibe el cliente
-            os.flush();
-        } catch (IOException ex) {
-            System.out.println(ex);
-        }
+    public Worker(Server srv, Socket s, IService service) throws IOException {
+        this.srv = srv;
+        this.s = s;
+        this.service = service;
+        os = new ObjectOutputStream(s.getOutputStream());
+        os.writeObject(sessionId);   // lo primero que recibe el cliente
+        os.flush();
+        s.setSoTimeout(5000);        // si el cliente no completa el saludo, no bloquea al servidor
+        is = new ObjectInputStream(s.getInputStream());
+        s.setSoTimeout(0);
     }
 
-    boolean continuar;
+    private volatile boolean continuar;
 
     public void start() {
-        try {
-            System.out.println("Worker atendiendo peticiones...");
-            Thread t = new Thread(new Runnable() {
-                public void run() {
-                    listen();
-                }
-            });
-            continuar = true;
-            t.start();
-        } catch (Exception ex) { }
+        System.out.println("Worker atendiendo peticiones...");
+        Thread t = new Thread(new Runnable() {
+            public void run() {
+                listen();
+            }
+        }, "worker-" + sessionId.substring(0, 8));
+        continuar = true;
+        t.start();
     }
 
     public void stop() {
@@ -66,6 +62,10 @@ public class Worker {
 
     public String getSessionId() {
         return sessionId;
+    }
+
+    public boolean isLogged() {
+        return usuario != null;
     }
 
     public void setAsync(Socket sAsync, ObjectOutputStream osAsync) {

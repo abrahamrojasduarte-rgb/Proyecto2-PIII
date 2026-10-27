@@ -34,7 +34,6 @@ public class AlertaReserva implements Serializable {
         this.recursos = recursos == null ? new ArrayList<>() : recursos;
     }
 
-    /** Arma la alerta a partir de una reserva ya creada (recursos por descripcion). */
     public static AlertaReserva de(Reserva r) {
         List<String> recursos = new ArrayList<>();
         for (Recurso rec : r.getRecursos()) recursos.add(rec.getDescripcion());

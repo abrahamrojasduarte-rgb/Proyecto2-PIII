@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import reservas.data.Database;
 
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -30,7 +31,13 @@ class LoginIT {
     @BeforeAll
     static void arrancar() throws Exception {
         assumeTrue(hayBaseDeDatos(), "No hay conexion a MySQL");
-        Thread t = new Thread(() -> new Server().run());
+        Thread t = new Thread(() -> {
+            try {
+                new Server().run();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
         t.setDaemon(true);
         t.start();
         Thread.sleep(1500);   // tiempo para que abra los puertos

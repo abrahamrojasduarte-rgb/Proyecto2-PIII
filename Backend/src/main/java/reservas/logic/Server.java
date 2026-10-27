@@ -7,38 +7,45 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import reservas.logic.Worker;
 
+
+ //Servidor del Backend.
+ //Hilo principal (run): acepta conexiones SINCRONICAS (PORT); por cada una crea un Worker
+ //(hilo propio) que atiende las peticiones de ese Frontend.
+ //Hilo asincronico (runAsync): acepta la segunda conexion de cada Frontend (PORT_ASYNC), lee su
+ //id de sesion y se la asigna al Worker correspondiente para que le envie notificaciones.
 
 public class Server {
     ServerSocket srv;
     ServerSocket srvAsync;
-    List<Worker> workers;
+    final List<Worker> workers = new ArrayList<Worker>();
+    private final IService service;
+    private volatile boolean continuar = true;
 
-    public Server() {
-        try {
-            srv = new ServerSocket(Protocol.PORT);
-            srvAsync = new ServerSocket(Protocol.PORT_ASYNC);
-            workers = new ArrayList<Worker>();
-            System.out.println("Servidor iniciado (puertos " + Protocol.PORT + " y " + Protocol.PORT_ASYNC + ")...");
-        } catch (IOException ex) {
-            System.out.println(ex);
-            System.exit(-1);
-        }
+    public Server() throws IOException {
+        this(Protocol.PORT, Protocol.PORT_ASYNC, Service.instance());
     }
 
-    public void run() {
-        IService service = Service.instance();
+    // Puerto 0 = el sistema escoge uno libre (util en pruebas)
+    public Server(int port, int portAsync, IService service) throws IOException {
+        this.service = service;
+        srv = new ServerSocket(port);
+        srvAsync = new ServerSocket(portAsync);
+        System.out.println("Servidor iniciado (puertos " + getPort() + " y " + getPortAsync() + ")...");
+    }
 
+    public int getPort() { return srv.getLocalPort(); }
+    public int getPortAsync() { return srvAsync.getLocalPort(); }
+
+    public void run() {
         Thread tAsync = new Thread(new Runnable() {
             public void run() {
                 runAsync();
             }
-        });
+        }, "server-async");
         tAsync.setDaemon(true);
         tAsync.start();
 
-        boolean continuar = true;
         Socket s;
         Worker worker;
         while (continuar) {
@@ -49,16 +56,17 @@ public class Server {
                 this.add(worker);
                 worker.start();
             } catch (Exception ex) {
-                System.out.println(ex);
+                if (continuar) System.out.println(ex);
             }
         }
     }
 
     private void runAsync() {
-        while (true) {
+        while (continuar) {
             try {
                 Socket sa = srvAsync.accept();
                 ObjectOutputStream osa = new ObjectOutputStream(sa.getOutputStream());
+                osa.flush();
                 ObjectInputStream isa = new ObjectInputStream(sa.getInputStream());
                 String sid = (String) isa.readObject();
                 Worker w = find(sid);
@@ -69,7 +77,7 @@ public class Server {
                     sa.close();
                 }
             } catch (Exception ex) {
-                System.out.println(ex);
+                if (continuar) System.out.println(ex);
             }
         }
     }
@@ -83,13 +91,14 @@ public class Server {
         return null;
     }
 
+    // Envia una notificacion a todos los Frontend con sesion iniciada, menos al que la origino.
     public void broadcast(int tipo, Object payload, Worker origen) {
         List<Worker> copia;
         synchronized (workers) {
             copia = new ArrayList<Worker>(workers);
         }
         for (Worker w : copia) {
-            if (w != origen) w.notificar(tipo, payload);
+            if (w != origen && w.isLogged()) w.notificar(tipo, payload);
         }
     }
 
@@ -105,5 +114,24 @@ public class Server {
             workers.remove(w);
             System.out.println("Quedan: " + workers.size());
         }
+    }
+
+    public int getWorkerCount() {
+        synchronized (workers) {
+            return workers.size();
+        }
+    }
+
+    // Detiene el servidor: cierra los ServerSocket y todas las conexiones activas
+    public void stop() {
+        continuar = false;
+        try { srv.close(); } catch (IOException ex) { }
+        try { srvAsync.close(); } catch (IOException ex) { }
+        List<Worker> copia;
+        synchronized (workers) {
+            copia = new ArrayList<Worker>(workers);
+            workers.clear();
+        }
+        for (Worker w : copia) w.stop();
     }
 }

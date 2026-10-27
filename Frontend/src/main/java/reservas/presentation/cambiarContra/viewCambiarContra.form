@@ -42,7 +42,7 @@
           <text value="Nueva Clave"/>
         </properties>
       </component>
-      <component id="d061d" class="javax.swing.JTextField" binding="actualtxt">
+      <component id="d061d" class="javax.swing.JPasswordField" binding="actualtxt">
         <constraints>
           <grid row="0" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
             <preferred-size width="150" height="-1"/>
@@ -50,7 +50,7 @@
         </constraints>
         <properties/>
       </component>
-      <component id="ff172" class="javax.swing.JTextField" binding="nueva1txt">
+      <component id="ff172" class="javax.swing.JPasswordField" binding="nueva1txt">
         <constraints>
           <grid row="1" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
             <preferred-size width="150" height="-1"/>
@@ -68,7 +68,7 @@
           <text value="Confirmar"/>
         </properties>
       </component>
-      <component id="a1dab" class="javax.swing.JTextField" binding="nueva2txt">
+      <component id="a1dab" class="javax.swing.JPasswordField" binding="nueva2txt">
         <constraints>
           <grid row="2" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
             <preferred-size width="150" height="-1"/>

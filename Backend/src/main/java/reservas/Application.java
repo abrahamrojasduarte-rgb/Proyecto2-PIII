@@ -2,6 +2,7 @@ package reservas;
 
 import reservas.data.Database;
 import reservas.logic.Server;
+import reservas.logic.Service;
 
 public class Application {
     public static void main(String[] args) {
@@ -14,7 +15,16 @@ public class Application {
             System.exit(-1);
         }
 
-        Server server = new Server();
-        server.run();
+        try {
+            Server server = new Server();
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                server.stop();
+                Service.instance().stop();
+            }));
+            server.run();
+        } catch (Exception ex) {
+            System.err.println("No se pudo iniciar el servidor: " + ex.getMessage());
+            System.exit(-1);
+        }
     }
 }
