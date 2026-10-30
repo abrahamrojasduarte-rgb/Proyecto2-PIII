@@ -70,7 +70,7 @@ public class CategoriaDao {
             stm.setString(1, id);
             try(ResultSet rs = stm.executeQuery()) {
                 if (rs.next()){
-                    return new CategoriaRecurso(rs.getString("id"), rs.getString("descripcio"));
+                    return new CategoriaRecurso(rs.getString("id"), rs.getString("descripcion"));
                 }
             }
         }
