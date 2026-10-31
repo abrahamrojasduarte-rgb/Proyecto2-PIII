@@ -92,103 +92,200 @@ public class Application {
     }
 
     private static void doRun() {
+
         Funcionario usuario = Sesion.getUsuario();
         boolean admin = Rol.ADMINISTRADOR.equals(usuario.getRol());
-        JFrame window = new JFrame("SISTEMA DE RESERVAS - " + usuario.getId() + " (" + usuario.getRol() +")");
+
+        JFrame window = new JFrame(
+                "SISTEMA DE RESERVAS - "
+                        + usuario.getId()
+                        + " (" + usuario.getRol() + ")"
+        );
+
         window.setIconImage(icono());
-        window.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        window.setDefaultCloseOperation(
+                WindowConstants.DO_NOTHING_ON_CLOSE
+        );
+
         JTabbedPane tabbedPane = new JTabbedPane();
         List<Recargable> recargas = new ArrayList<>();
+
         if (admin) {
-            reservas.presentation.funcionarios.Model funcModel = new
-                    reservas.presentation.funcionarios.Model();
-            reservas.presentation.funcionarios.viewFuncionarios funcView = new
-                    reservas.presentation.funcionarios.viewFuncionarios();
-            reservas.presentation.funcionarios.Controller funcController = new
-                    reservas.presentation.funcionarios.Controller(funcModel, funcView);
-            agregar(tabbedPane, recargas, "Funcionarios", "funcionarios.png",
-                    funcView.getFuncionarioAdmin(), funcController::refresh);
-            reservas.presentation.categorias.Model catModel = new
-                    reservas.presentation.categorias.Model();
-            reservas.presentation.categorias.viewCategorias catView = new
-                    reservas.presentation.categorias.viewCategorias();
-            reservas.presentation.categorias.Controller catController = new
-                    reservas.presentation.categorias.Controller(catModel, catView);
-            agregar(tabbedPane, recargas, "Categorias", "categorias.png", catView.getPanelCategorias(),
-                    catController::refresh);
-            reservas.presentation.recursos.Model recModel = new reservas.presentation.recursos.Model();
-            reservas.presentation.recursos.viewRecursos recView = new
-                    reservas.presentation.recursos.viewRecursos();
-            reservas.presentation.recursos.Controller recController = new
-                    reservas.presentation.recursos.Controller(recModel, recView);
-            agregar(tabbedPane, recargas, "Recursos", "recursos.png", recView.getPanelRecursos(),
-                    recController::refresh);
+
+            // ===== FUNCIONARIOS =====
+            reservas.presentation.funcionarios.Model funcModel =
+                    new reservas.presentation.funcionarios.Model();
+
+            reservas.presentation.funcionarios.viewFuncionarios funcView =
+                    new reservas.presentation.funcionarios.viewFuncionarios();
+
+            reservas.presentation.funcionarios.Controller funcController =
+                    new reservas.presentation.funcionarios.Controller(
+                            funcModel, funcView
+                    );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Funcionarios",
+                    "funcionarios.png",
+                    funcView.getFuncionarioAdmin(),
+                    funcController::refresh
+            );
+
+            // ===== CATEGORIAS =====
+            reservas.presentation.categorias.Model catModel =
+                    new reservas.presentation.categorias.Model();
+
+            reservas.presentation.categorias.viewCategorias catView =
+                    new reservas.presentation.categorias.viewCategorias();
+
+            reservas.presentation.categorias.Controller catController =
+                    new reservas.presentation.categorias.Controller(
+                            catModel, catView
+                    );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Categorias",
+                    "categorias.png",
+                    catView.getPanelCategorias(),
+                    catController::refresh
+            );
+
+            // ===== RECURSOS =====
+            reservas.presentation.recursos.Model recModel =
+                    new reservas.presentation.recursos.Model();
+
+            reservas.presentation.recursos.viewRecursos recView =
+                    new reservas.presentation.recursos.viewRecursos();
+
+            reservas.presentation.recursos.Controller recController =
+                    new reservas.presentation.recursos.Controller(
+                            recModel, recView
+                    );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Recursos",
+                    "recursos.png",
+                    recView.getPanelRecursos(),
+                    recController::refresh
+            );
+
         } else {
-            reservas.presentation.reserva.Model resModel = new reservas.presentation.reserva.Model();
-            reservas.presentation.reserva.viewReserva resView = new
-                    reservas.presentation.reserva.viewReserva();
-            reservas.presentation.reserva.Controller resController = new
-                    reservas.presentation.reserva.Controller(resModel, resView);
-            agregar(tabbedPane, recargas, "Reservas", "reservas.png", resView.getPanelReserva(),
-                    resController::refresh);
+
+            // ===== RESERVAS PARA FUNCIONARIOS =====
+            reservas.presentation.reserva.Model resModel =
+                    new reservas.presentation.reserva.Model();
+
+            reservas.presentation.reserva.viewReserva resView =
+                    new reservas.presentation.reserva.viewReserva();
+
+            reservas.presentation.reserva.Controller resController =
+                    new reservas.presentation.reserva.Controller(
+                            resModel, resView
+                    );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Reservas",
+                    "reservas.png",
+                    resView.getPanelReserva(),
+                    resController::refresh
+            );
         }
-        reservas.presentation.calendarizacion.Model calModel = new
-                reservas.presentation.calendarizacion.Model();
-        reservas.presentation.calendarizacion.viewCalendarizacion calView = new
-                reservas.presentation.calendarizacion.viewCalendarizacion();
-        reservas.presentation.calendarizacion.Controller calController = new
-                reservas.presentation.calendarizacion.Controller(calModel, calView);
-        agregar(tabbedPane, recargas, "Calendarizacion", "calendarizacion.png",
-                calView.getPanelCalendarizacion(), calController::refresh);
-        reservas.presentation.actividades.Model actModel = new reservas.presentation.actividades.Model();
-        reservas.presentation.actividades.viewActividades actView = new
-                reservas.presentation.actividades.viewActividades();
-        new reservas.presentation.actividades.Controller(actModel, actView);
-        agregar(tabbedPane, recargas, "Actividades", "actividades.png", actView.getPanelActividades(),
-                null);
-        reservas.presentation.estadisticas.Model estModel = new
-                reservas.presentation.estadisticas.Model();
-        reservas.presentation.estadisticas.viewEstadisticas estView = new
-                reservas.presentation.estadisticas.viewEstadisticas();
-        new reservas.presentation.estadisticas.Controller(estModel, estView);
-        agregar(tabbedPane, recargas, "Estadisticas", "statistics.png", estView.getPanelEstadisticas(),
-                null);
+
+        // ===== RECARGAR PESTANAS =====
         tabbedPane.addChangeListener(e -> {
             int i = tabbedPane.getSelectedIndex();
-            if (i >= 0) recargar(tabbedPane, recargas.get(i));
+
+            if (i >= 0) {
+                recargar(tabbedPane, recargas.get(i));
+            }
         });
-        if (!recargas.isEmpty()) recargar(tabbedPane, recargas.get(0));
-        reservas.presentation.alertas.Model alertModel = new reservas.presentation.alertas.Model();
-        reservas.presentation.alertas.View alertView = new reservas.presentation.alertas.View();
-        reservas.presentation.alertas.Controller alertController = new
-                reservas.presentation.alertas.Controller(alertModel, alertView);
-        try {
-            socketListener = new SocketListener(alertController, Service.instance().getSid(),
-                    Service.instance().getConfiguracion());
-            socketListener.start();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(null, "No se pudo abrir el canal de alertas: " +
-                            ex.getMessage(),
-                    "Alertas", JOptionPane.WARNING_MESSAGE);
+
+
+        if (!recargas.isEmpty()) {
+            recargar(tabbedPane, recargas.get(0));
         }
-        JLabel opciones = new JLabel("Opciones: " + (admin ? "Administrador" : "Funcionario") + " - " +
-                usuario.getNombre());
-        opciones.setFont(opciones.getFont().deriveFont(Font.BOLD));
-        opciones.setBorder(new EmptyBorder(0, 2, 4, 0));
+
+        // ===== ALERTAS EN TIEMPO REAL =====
+        reservas.presentation.alertas.Model alertModel =
+                new reservas.presentation.alertas.Model();
+
+        reservas.presentation.alertas.View alertView =
+                new reservas.presentation.alertas.View();
+
+        reservas.presentation.alertas.Controller alertController =
+                new reservas.presentation.alertas.Controller(
+                        alertModel,
+                        alertView
+                );
+
+        // Abrir canal asincronico despues del login
+        try {
+            socketListener = new SocketListener(
+                    alertController,
+                    Service.instance().getSid(),
+                    Service.instance().getConfiguracion()
+            );
+
+            socketListener.start();
+
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "No se pudo abrir el canal de alertas: "
+                            + ex.getMessage(),
+                    "Alertas",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        }
+
+        // ===== VENTANA PRINCIPAL =====
+        JLabel opciones = new JLabel(
+                "Opciones: "
+                        + (admin ? "Administrador" : "Funcionario")
+                        + " - "
+                        + usuario.getNombre()
+        );
+
+        opciones.setFont(
+                opciones.getFont().deriveFont(Font.BOLD)
+        );
+
+        opciones.setBorder(
+                new EmptyBorder(0, 2, 4, 0)
+        );
+
         JPanel izquierda = new JPanel(new BorderLayout());
-        izquierda.setBorder(new EmptyBorder(4, 4, 4, 0));
+
+        izquierda.setBorder(
+                new EmptyBorder(4, 4, 4, 0)
+        );
+
         izquierda.add(opciones, BorderLayout.NORTH);
         izquierda.add(tabbedPane, BorderLayout.CENTER);
+
         JPanel contenido = new JPanel(new BorderLayout());
+
         contenido.add(izquierda, BorderLayout.CENTER);
+
+        // Panel de alertas a la derecha, fuera de las pestanas
         contenido.add(alertView.getPanel(), BorderLayout.EAST);
+
         window.setContentPane(contenido);
+
         window.addWindowListener(new WindowAdapter() {
-            @Override
             public void windowClosing(WindowEvent e) {
                 salir();
             }
         });
+
         window.setSize(1400, 650);
         window.setLocationRelativeTo(null);
         window.setVisible(true);
