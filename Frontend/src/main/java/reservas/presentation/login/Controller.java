@@ -41,10 +41,10 @@ public class Controller {
         f.setClave(clave);
 
         try {
-            Funcionario real = Service.instance().login(f);   // el backend valida
+            Funcionario real = Service.instance().login(f);
             Sesion.setUsuario(real);
             loginWindow.dispose();
-            onLoginSuccess.run();                              // Application.doRun()
+            onLoginSuccess.run();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(view.getPanelLog(), ex.getMessage(),
                     "Error de acceso", JOptionPane.ERROR_MESSAGE);

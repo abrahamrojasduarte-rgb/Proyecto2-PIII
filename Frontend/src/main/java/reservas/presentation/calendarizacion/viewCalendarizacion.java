@@ -21,7 +21,6 @@ public class viewCalendarizacion implements PropertyChangeListener {
     private JButton cargarButton;
     private JButton imprimirButton;
     private DatePicker datePicker;
-    private JTable tableMatriz;
 
     private Model model;
     private Controller controller;

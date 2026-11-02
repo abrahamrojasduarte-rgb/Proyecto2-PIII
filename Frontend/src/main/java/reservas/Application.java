@@ -112,7 +112,6 @@ public class Application {
 
         if (admin) {
 
-            // ===== FUNCIONARIOS =====
             reservas.presentation.funcionarios.Model funcModel =
                     new reservas.presentation.funcionarios.Model();
 
@@ -133,7 +132,6 @@ public class Application {
                     funcController::refresh
             );
 
-            // ===== CATEGORIAS =====
             reservas.presentation.categorias.Model catModel =
                     new reservas.presentation.categorias.Model();
 
@@ -154,7 +152,6 @@ public class Application {
                     catController::refresh
             );
 
-            // ===== RECURSOS =====
             reservas.presentation.recursos.Model recModel =
                     new reservas.presentation.recursos.Model();
 
@@ -177,7 +174,6 @@ public class Application {
 
         } else {
 
-            // ===== RESERVAS PARA FUNCIONARIOS =====
             reservas.presentation.reserva.Model resModel =
                     new reservas.presentation.reserva.Model();
 
@@ -199,7 +195,89 @@ public class Application {
             );
         }
 
-        // ===== RECARGAR PESTANAS =====
+
+        StringBuilder errores = new StringBuilder();
+
+        try {
+            reservas.presentation.calendarizacion.Model calModel =
+                    new reservas.presentation.calendarizacion.Model();
+
+            reservas.presentation.calendarizacion.viewCalendarizacion calView =
+                    new reservas.presentation.calendarizacion.viewCalendarizacion();
+
+            reservas.presentation.calendarizacion.Controller calController =
+                    new reservas.presentation.calendarizacion.Controller(
+                            calModel, calView
+                    );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Calendarizacion",
+                    "calendarizacion.png",
+                    calView.getPanelCalendarizacion(),
+                    calController::refresh
+            );
+        } catch (Exception | LinkageError ex) {
+            registrarFallo(errores, "Calendarizacion", ex);
+        }
+
+        try {
+            reservas.presentation.actividades.Model actModel =
+                    new reservas.presentation.actividades.Model();
+
+            reservas.presentation.actividades.viewActividades actView =
+                    new reservas.presentation.actividades.viewActividades();
+
+            new reservas.presentation.actividades.Controller(
+                    actModel, actView
+            );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Actividades",
+                    "actividades.png",
+                    actView.getPanelActividades(),
+                    null
+            );
+        } catch (Exception | LinkageError ex) {
+            registrarFallo(errores, "Actividades", ex);
+        }
+
+        try {
+            reservas.presentation.estadisticas.Model estModel =
+                    new reservas.presentation.estadisticas.Model();
+
+            reservas.presentation.estadisticas.viewEstadisticas estView =
+                    new reservas.presentation.estadisticas.viewEstadisticas();
+
+            new reservas.presentation.estadisticas.Controller(
+                    estModel, estView
+            );
+
+            agregar(
+                    tabbedPane,
+                    recargas,
+                    "Estadisticas",
+                    "statistics.png",
+                    estView.getPanelEstadisticas(),
+                    null
+            );
+        } catch (Exception | LinkageError ex) {
+            registrarFallo(errores, "Estadisticas", ex);
+        }
+
+        if (errores.length() > 0) {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "No se pudieron crear estas pestanas:\n" + errores
+                            + "\nEl detalle completo esta en la consola.",
+                    "Pestanas",
+                    JOptionPane.WARNING_MESSAGE
+            );
+        }
+
         tabbedPane.addChangeListener(e -> {
             int i = tabbedPane.getSelectedIndex();
 
@@ -213,7 +291,6 @@ public class Application {
             recargar(tabbedPane, recargas.get(0));
         }
 
-        // ===== ALERTAS EN TIEMPO REAL =====
         reservas.presentation.alertas.Model alertModel =
                 new reservas.presentation.alertas.Model();
 
@@ -226,7 +303,6 @@ public class Application {
                         alertView
                 );
 
-        // Abrir canal asincronico despues del login
         try {
             socketListener = new SocketListener(
                     alertController,
@@ -246,7 +322,6 @@ public class Application {
             );
         }
 
-        // ===== VENTANA PRINCIPAL =====
         JLabel opciones = new JLabel(
                 "Opciones: "
                         + (admin ? "Administrador" : "Funcionario")
@@ -281,6 +356,7 @@ public class Application {
         window.setContentPane(contenido);
 
         window.addWindowListener(new WindowAdapter() {
+            @Override
             public void windowClosing(WindowEvent e) {
                 salir();
             }
@@ -329,6 +405,15 @@ public class Application {
         }
     }
 
+    private static void registrarFallo(
+            StringBuilder errores,
+            String modulo,
+            Throwable ex
+    ) {
+        ex.printStackTrace();
+        errores.append("- ").append(modulo).append(": ").append(ex).append("\n");
+    }
+
     private static Image icono() {
         ImageIcon i = Iconos.cargarIcono(
                 "icon.png",
@@ -339,15 +424,12 @@ public class Application {
         return i == null ? null : i.getImage();
     }
 
-    // ===== CERRAR CONEXIONES =====
     private static void salir() {
 
-        // Cerrar canal de alertas
         if (socketListener != null) {
             socketListener.stop();
         }
 
-        // Cerrar conexion principal con Backend
         try {
             Service.instance().stop();
         } catch (Exception ignored) {
