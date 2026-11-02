@@ -18,10 +18,8 @@ public class Application {
 
     public static final Color BACKGROUND_ERROR = new Color(255, 102, 102);
 
-    // Canal de comunicacion para recibir alertas en tiempo real
     private static SocketListener socketListener;
 
-    // Lo que se recarga desde el Backend cuando el usuario entra a una pestana
     private interface Recargable {
         void refresh() throws Exception;
     }
@@ -210,6 +208,7 @@ public class Application {
             }
         });
 
+
         if (!recargas.isEmpty()) {
             recargar(tabbedPane, recargas.get(0));
         }
@@ -282,7 +281,6 @@ public class Application {
         window.setContentPane(contenido);
 
         window.addWindowListener(new WindowAdapter() {
-            @Override
             public void windowClosing(WindowEvent e) {
                 salir();
             }

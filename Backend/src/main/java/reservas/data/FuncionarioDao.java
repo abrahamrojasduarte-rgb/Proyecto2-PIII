@@ -88,15 +88,15 @@ public class FuncionarioDao {
         return lista;
     }
 
-    public Funcionario from(ResultSet rs, String alias) {
-        try {
+    public Funcionario from(ResultSet rs, String alias) throws SQLException {
+        try{
             Funcionario f = new Funcionario();
             f.setId(rs.getString(alias + ".id"));
             f.setNombre(rs.getString(alias + ".nombre"));
             f.setTelefono(rs.getString(alias + ".telefono"));
             f.setClave(rs.getString(alias + ".clave"));
             f.setRol(rs.getString(alias + ".rol"));
-            return f;
+        return f;
         } catch (SQLException ex) {
             return null;
         }
